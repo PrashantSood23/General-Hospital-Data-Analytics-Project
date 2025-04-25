@@ -36,4 +36,4 @@ A comprehensive Power BI dashboard that uncovers cost drivers, profitability tre
 
 **Prashant**  
 [LinkedIn](www.linkedin.com/in/prashant-data-analytics)  
-Email- prashantt.sood@gmail.com
+[Email]prashantt.sood@gmail.com
