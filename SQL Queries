@@ -1,0 +1,302 @@
+select * from encounter;
+select * from organization;
+select * from patient;
+select * from payer;
+select * from procedure;
+
+--1.Total Encounters
+create view total_encounter as 
+select count(encounterclass) AS total_encounters from encounter;
+
+--2.Total encounters based on encounterclasss
+--create view encounter_bases_on_encounterclass as 
+select encounterclass, count(encounterclass) as total_encounters
+from encounter group by encounterclass order by total_encounters desc;
+
+--3.Total Patients
+create view total_petient as 
+select count(distinct patient) As total_patients from encounter;
+
+--4.Average patient time in hospital(minutes)
+create view avg_ptn_time as 
+select avg (timestampdiff(minutes,startt,stop)) as 
+avg_time_min from encounter;
+
+--5.Daily Encounter Volume
+--create view daily_encounter_volumn as 
+SELECT DATE(STARTT) AS ENCOUNTER_DATE,
+COUNT(*) AS ENCOUNTER_COUNT FROM ENCOUNTER
+GROUP BY ENCOUNTER_DATE
+ORDER BY ENCOUNTER_DATE;
+
+
+--6.Total coverage by each Payer
+--create view ttl_cvrg_by_each_payer as 
+select p.name, e.payer, count(payer) as Payers 
+from encounter e join payer p on p.id=e.payer
+group by e.payer, p.name order by payers desc;
+
+--7.Patient who doesnt have any insurance
+--create view ptnt_no_insurance as 
+select p.prefix, p.first_name, p.last_name, e.patient from encounter e 
+left join patient p on e.patient=p.id where e.payer='b1c428d6-4f07-31e0-90f0-68ffa6ff8c76';
+
+--8.Total patients came for which treatment
+create view pnt_for_which_trtmnt as 
+select reasoncode,reasondescription,code,description, count(description) as total_descp 
+from encounter group by description,reasondescription,reasoncode, code order by total_descp desc;
+
+--9.How much money did the patient pays from their own pocket
+--create view pnt_pay_money_pocket as 
+select p.id, p.prefix, p.first_name, p.last_name, e.total_claim_cost-e.payer_coverage as patient_pays from encounter e join patient p on p.id=e.patient order by patient_pays desc;
+
+--10.Payer coverage ratio by each encounter
+--create view payer_cvrg_ratio_by_each_customer as
+SELECT *,(PAYER_COVERAGE / NULLIF(TOTAL_CLAIM_COST, 0)) AS COVERAGE_RATIO
+FROM encounter;
+
+--11.total profit
+--create view  total_profit as 
+select sum(TOTAL_CLAIM_COST - BASE_ENCOUNTER_COST) as profit from encounter;
+
+--12.Total base encounter cost
+--create view ttl_base_cost as 
+select sum(base_encounter_cost) as total_base_cost from encounter;
+
+--13.Avg base cost
+--create view avg_base_cost as 
+select avg(base_encounter_cost) as avg_base_cost from encounter;
+
+--14.Total claim cost
+--create view ttl_claim_cost as 
+select sum(total_claim_cost) as total_claim from encounter;
+
+--15.Avg total claim cost
+--create view avg_ttl_claim_cost as 
+select avg(total_claim_cost) as total_claim from encounter;
+
+--16.Total payer coverage
+--create view ttl_payer_cvrg as 
+select sum(payer_coverage) as total_cvrg from encounter;
+
+--17.avg payer covergae
+--create view avg_payer_cvrg as 
+select avg(payer_coverage) as avg_cvrg from encounter;
+
+--18.Total claim cost coverage by each payer
+--create view ttl_claim_cost_cvrg_by_each_payer as 
+select  p.name,e.payer,sum(e.payer_coverage) as total from encounter e join payer p on p.id=e.payer group by e.payer,p.name order by total desc;
+
+--19.profit or loss on each encounter
+--create view profit_loss_on_each_encnt as 
+SELECT *,(TOTAL_CLAIM_COST - BASE_ENCOUNTER_COST) AS PROFIT_MARGIN
+FROM encounter;
+
+--20.total profit/loss accross all data
+--create view profit_loss_on_all_data as 
+SELECT SUM(TOTAL_CLAIM_COST - BASE_ENCOUNTER_COST) AS TOTAL_PROFIT_MARGIN
+FROM encounter;
+
+--21.which encounter types are most/least profitable(avg basis)
+--create view enctr_most_least_profitable as 
+SELECT ENCOUNTERCLASS,AVG(TOTAL_CLAIM_COST - BASE_ENCOUNTER_COST) AS AVG_PROFIT_MARGIN
+FROM encounter GROUP BY ENCOUNTERCLASS;
+
+
+--22.total profit, total cost, profit margin ratio by each encounterclass
+--create view ttl_prfit_ttl_cost_prfit_margin_ratio_by_each_encntrclass as 
+SELECT ENCOUNTERCLASS,
+       SUM(TOTAL_CLAIM_COST - BASE_ENCOUNTER_COST) AS TOTAL_PROFIT,
+       SUM(BASE_ENCOUNTER_COST) AS TOTAL_COST,
+       ROUND(SUM(TOTAL_CLAIM_COST - BASE_ENCOUNTER_COST) / NULLIF(SUM(BASE_ENCOUNTER_COST), 0), 2) AS PROFIT_MARGIN_RATIO
+FROM encounter
+GROUP BY ENCOUNTERCLASS;
+
+--23.avg base cost, total claim, coverage, avg money patient paid by himself by encounter class
+--create view avg_money_ptnt_pay_BY_himself_by_enctrclass as 
+SELECT ENCOUNTERCLASS,
+       AVG(BASE_ENCOUNTER_COST) AS AVG_BASE_COST,
+       AVG(TOTAL_CLAIM_COST) AS AVG_TOTAL_CLAIM,
+       AVG(PAYER_COVERAGE) AS AVG_COVERAGE,
+       AVG(TOTAL_CLAIM_COST - PAYER_COVERAGE) AS AVG_OUT_OF_POCKET_BY_PATIENT
+FROM encounter
+GROUP BY ENCOUNTERCLASS;
+
+--24.Profit Trend Over Time
+create view prfit_over_time as
+SELECT 
+    DATE_TRUNC('month', STARTT) AS MONTH,
+    SUM(TOTAL_CLAIM_COST - BASE_ENCOUNTER_COST) AS MONTHLY_PROFIT
+FROM ENCOUNTER
+GROUP BY MONTH
+ORDER BY MONTH;
+
+--25.Loss making cases(0 or negative profit)
+--create view loss_making_case as 
+SELECT * FROM ENCOUNTER
+WHERE TOTAL_CLAIM_COST < BASE_ENCOUNTER_COST;
+
+--26.Most Expensive Encounter Types (ENCOUTERCLASS)
+--create view most_expnsive_encounter_type as 
+SELECT 
+    ENCOUNTERCLASS,
+    COUNT(*) AS TOTAL_VISITS,
+    ROUND(AVG(TOTAL_CLAIM_COST), 2) AS AVG_CLAIM_COST,
+    ROUND(AVG(BASE_ENCOUNTER_COST), 2) AS AVG_BASE_COST,
+    ROUND(AVG(TOTAL_CLAIM_COST - BASE_ENCOUNTER_COST), 2) AS AVG_PROFIT
+FROM ENCOUNTER
+GROUP BY ENCOUNTERCLASS
+ORDER BY AVG_CLAIM_COST DESC;
+
+--27.Total number of dead patient
+--create view ttl_dead as 
+select count(deathdate) as total_deaths from patient;
+
+--28.total number of maried and single patients
+create view married_single as 
+select marital,count(marital) as total from patient group by marital order by total desc;
+
+--29.total number of male and female
+create view male_female as 
+select gender,count(gender) as total from patient group by gender order by total desc;
+
+--30.total number of races
+--create view ttl_race as 
+select race, count(race) as total from patient group by race order by total desc;
+
+--31.total ethnicity
+create view ttl_ethnicity as 
+select ethnicity, count(ethnicity) as total from patient group by ethnicity order by total desc;
+
+--32.total number of patient from different cities
+--create view ttl_pntnt_from_diff_cities as 
+select city,count(city) as total_patient_per_city from patient group by city order by total_patient_per_city desc ;
+
+--32.1 all the cities
+create view cities_name as 
+select distinct city from patient;
+
+--33.total number of patients from different age group
+--create view ttl_ptnt_from_diff_age_grp as 
+SELECT
+  CASE
+    WHEN FLOOR(DATEDIFF('year', BIRTHDATE, CURRENT_DATE)) < 18 THEN '0-17'
+    WHEN FLOOR(DATEDIFF('year', BIRTHDATE, CURRENT_DATE)) BETWEEN 18 AND 35 THEN '18-35'
+    WHEN FLOOR(DATEDIFF('year', BIRTHDATE, CURRENT_DATE)) BETWEEN 36 AND 55 THEN '36-55'
+    WHEN FLOOR(DATEDIFF('year', BIRTHDATE, CURRENT_DATE)) BETWEEN 56 AND 75 THEN '56-75'
+    ELSE '75+'
+  END AS Age_Group,
+  COUNT(*) AS Patient_Count
+FROM PATIENT
+GROUP BY Age_Group order by age_group;
+
+--34.top birthplace
+create view top_birthplace as 
+SELECT BIRTHPLACE, COUNT(*) AS Count
+FROM PATIENT
+GROUP BY BIRTHPLACE
+ORDER BY Count DESC;
+
+--35.Top 10 Most Expensive Procedures
+--create view top_10_ecpnsive_prodecure as 
+SELECT DESCRIPTION, AVG(BASE_COST) AS Avg_Cost, COUNT(*) AS Procedure_Count
+FROM PROCEDURE
+GROUP BY DESCRIPTION
+ORDER BY Avg_Cost DESC
+LIMIT 10;
+
+
+--36.total procedure per month and their total cost per month
+--create view ttl_procdure_per_month_and_ttl_cost_permonth as 
+SELECT
+  TO_CHAR(STARTT, 'YYYY-MM') AS Month,
+  COUNT(*) AS Procedure_Count,
+  SUM(BASE_COST) AS Total_Cost
+FROM PROCEDURE
+GROUP BY Month
+ORDER BY Month;
+
+--37.Total Cost per Reason Code
+create view ttl_cost_per_reason_code as 
+SELECT REASONCODE, SUM(BASE_COST) AS Total_Cost
+FROM PROCEDURE
+GROUP BY REASONCODE
+ORDER BY Total_Cost DESC;
+
+
+--38.Cost Distribution Buckets(in which price bracket total number of procedure is done)
+--create view cost_distribution_bucket as 
+SELECT
+  CASE
+    WHEN BASE_COST < 100 THEN '< $100'
+    WHEN BASE_COST BETWEEN 100 AND 500 THEN '$100–₹500'
+    WHEN BASE_COST BETWEEN 501 AND 1000 THEN '$501–₹1000'
+    ELSE '> $1000'
+  END AS Cost_Bracket,
+  COUNT(*) AS Procedure_Count
+FROM PROCEDURE
+GROUP BY Cost_Bracket;
+
+--39.Top Procedures by Frequency
+--create view top_procdure_by_freqeuncy as 
+SELECT DESCRIPTION, COUNT(*) AS Procedure_Count
+FROM PROCEDURE
+GROUP BY DESCRIPTION
+ORDER BY Procedure_Count DESC
+LIMIT 10;
+
+--40.Most Common Procedure by Age Group
+--create view most_common_procedure_by_age_grp as 
+SELECT Age_Group, DESCRIPTION, Procedure_Count FROM (
+  SELECT
+    CASE
+      WHEN FLOOR(DATEDIFF('year', BIRTHDATE, CURRENT_DATE)) < 18 THEN '0-17'
+      WHEN FLOOR(DATEDIFF('year', BIRTHDATE, CURRENT_DATE)) BETWEEN 18 AND 35 THEN '18-35'
+      WHEN FLOOR(DATEDIFF('year', BIRTHDATE, CURRENT_DATE)) BETWEEN 36 AND 55 THEN '36-55'
+      WHEN FLOOR(DATEDIFF('year', BIRTHDATE, CURRENT_DATE)) BETWEEN 56 AND 75 THEN '56-75'
+      ELSE '75+'
+    END AS Age_Group,
+    p.DESCRIPTION,
+    COUNT(*) AS Procedure_Count,
+    RANK() OVER (PARTITION BY 
+      CASE
+        WHEN FLOOR(DATEDIFF('year', BIRTHDATE, CURRENT_DATE)) < 18 THEN '0-17'
+        WHEN FLOOR(DATEDIFF('year', BIRTHDATE, CURRENT_DATE)) BETWEEN 18 AND 35 THEN '18-35'
+        WHEN FLOOR(DATEDIFF('year', BIRTHDATE, CURRENT_DATE)) BETWEEN 36 AND 55 THEN '36-55'
+        WHEN FLOOR(DATEDIFF('year', BIRTHDATE, CURRENT_DATE)) BETWEEN 56 AND 75 THEN '56-75'
+        ELSE '75+'
+      END 
+      ORDER BY COUNT(*) DESC
+    ) AS rnk
+  FROM PROCEDURE p
+  JOIN PATIENT pt ON p.patient = pt.id
+  GROUP BY Age_Group, p.DESCRIPTION
+) WHERE rnk = 1;
+
+--41.How many patients had the same procedure more than once
+--create view pnt_have_same_procedure_more_than_once as 
+SELECT p.PATIENT, p.DESCRIPTION, COUNT(*) AS Times_Received
+FROM PROCEDURE p
+GROUP BY p.PATIENT, p.DESCRIPTION
+HAVING COUNT(*) > 1
+ORDER BY Times_Received DESC;
+
+
+--42.What are males vs females commonly being treated for
+--create view male_female_treatment as 
+SELECT pt.GENDER, p.REASONDESCRIPTION, COUNT(*) AS Countt
+FROM PROCEDURE p
+JOIN PATIENT pt ON p.PATIENT = pt.id
+GROUP BY pt.GENDER, p.REASONDESCRIPTION
+ORDER BY pt.GENDER, Countt DESC;
+
+--43. NO Insurance patient total payment
+select sum(total_claim_cost-base_encounter_cost) from encounter where payer ='b1c428d6-4f07-31e0-90f0-68ffa6ff8c76' ;
+
+
+select * from patient;
+select * from payer;
+select * from encounter;
+select * from encounter where startt between '2011-01-01' and '2011-01-31';
+select count(distinct patient) from encounter where payer ='b1c428d6-4f07-31e0-90f0-68ffa6ff8c76';
+select count(id) from encounter;
